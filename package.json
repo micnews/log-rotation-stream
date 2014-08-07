@@ -1,0 +1,19 @@
+{
+  "name": "log-rotation-stream",
+  "description": "a writable stream rotates out dated stream behind the scenes",
+  "version": "0.0.0",
+  "homepage": "https://github.com/micnews/log-rotation-stream",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/micnews/log-rotation-stream.git"
+  },
+  "dependencies": {
+    "mkdirp": "~0.5.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "set -e; for t in test/*.js; do node $t; done"
+  },
+  "author": "Dominic Tarr <dominictarr@mic.com> (http://mic.com)",
+  "license": "MIT"
+}
