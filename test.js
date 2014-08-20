@@ -17,7 +17,7 @@ function pummel (l, write) {
 }
 
 var stream =
-  rotate(path.join(__dirname, '_logs'), 1024*1024*1024)
+  rotate(path.join(__dirname, '_logs'), 1024*1024*100)
 
 var l = 0, c = 0, b = '', start = Date.now()
 
