@@ -1,5 +1,5 @@
 var crypto = require('crypto')
-
+var CSV = require('csv-line')
 var i = 0
 
 var bytes = crypto.pseudoRandomBytes(~~(1024*0.75)).toString('base64')
@@ -7,12 +7,7 @@ var bytes = crypto.pseudoRandomBytes(~~(1024*0.75)).toString('base64')
 var random = module.exports = function (len) {
   len = len || 1024
   var d = new Date()
-  return (
-    'ts:' + (+d) +
-    ' tz:' + (d.getTimezoneOffset()) +
-    ' count:' + (++i) +
-    ' msg:' + bytes
-  )
+  return CSV.encode([+d, d.getTimezoneOffset(), (++i), bytes])
 
   return {
     ts: +d,
