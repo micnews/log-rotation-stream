@@ -46,9 +46,6 @@ module.exports = function (dir, maxsize) {
     //we will still be writing to this, but this is a rename
     //so the inode won't change so this should be okay.
     //I don't know how *your* filesystem works, though.
-    console.error('rotate',
-      datedir(start), start.toISOString(), written
-    )
 
     written = 0
     moving = true
@@ -69,7 +66,6 @@ module.exports = function (dir, maxsize) {
 
   function create () {
     //end old, and create a new file.
-    console.log('create')
     if(_stream) _stream.end()
 
     start = new Date()
