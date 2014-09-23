@@ -16,8 +16,8 @@ function pad (s) {
 module.exports = function (dir, maxsize) {
   maxsize = maxsize || 1024*1024*1024
   var s = new Stream()
-
-  var _stream, start, moving
+  s.buffer = []
+  var _stream, start, moving, creating = false
 
   var n = 0
 
@@ -66,29 +66,78 @@ module.exports = function (dir, maxsize) {
 
   function create () {
     //end old, and create a new file.
-    if(_stream) _stream.end()
+    if(creating) return
+    creating = true
+    if(_stream) {
+      _stream.end()
+      _stream = null
+      fresh()
+    }
+    else
+      check()
 
-    start = new Date()
-    _stream = fs.createWriteStream(headfile = headfilename(start))
+    var rx = /^head(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z)\.log/
 
-    _stream.start = start
+    function check () {
+      fs.readdir(dir, function (err, ls) {
+        var files = ls.filter(function (filename) {
+          return rx.test(filename)
+        }).sort()
+        var name = files.pop()
+        if(!name) fresh()
+        else {
+          var filename = name ? path.join(dir, name) : null
+          fs.stat(filename, function (err, stat) {
+            if(err) {
+              // if the file did not exist at this point,
+              // it must have been deleted between when we got it from readdir
+              // and now, so just ignore this and continue like it wasn't there.
+              fresh()
+            }
+            else if(stat.size < maxsize) {
+              var stream =
+                fs.createWriteStream(headfile = filename, {flags: 'a'})
+                start = stream.start = new Date(rx.exec(name)[1])
+              next(stream)
+            }
+            else fresh()
+          })
+        }
+      })
+    }
 
-    _stream.on('drain', function () {
-      s.emit('drain')
-    })
-    _stream.on('close', function () {
-      s.emit('drain')
-    })
-    var logdir = datedir(start)
+    function fresh () {
+      start = new Date()
+      var stream = fs.createWriteStream(headfile = headfilename(start))
+      stream.start = start
+      next(stream)
+    }
 
-    mkdirp(logdir, function (err) {
-      if(err) s.emit('error', err)
-      //create the directory that we will put the file
-      //into later. technically this is a race condition
-      //but it is fair to assume that writing one log
-      //will take much much longer than ensuring a few
-      //directories exist.
-    })
+    function next (stream) {
+
+      var logdir = datedir(start)
+
+      mkdirp(logdir, function (err) {
+        if(err) return s.emit('error', err)
+
+        _stream = stream
+        creating = false
+
+        while(s.buffer.length)
+          _stream.write(s.buffer.shift())
+
+        _stream.start = start
+
+        _stream.on('drain', function () {
+          s.emit('drain')
+        })
+        _stream.on('close', function () {
+          s.emit('drain')
+        })
+
+
+      })
+    }
   }
 
   var written = 0
@@ -97,7 +146,12 @@ module.exports = function (dir, maxsize) {
 
   s.write = function (data, enc) {
     if((written += data.length) > maxsize) rotate()
-    if(moving) console.log('.')
+
+    //while _stream does not exist, buffer and return paused.
+    if(!_stream) {
+      s.buffer.push(data)
+      return false
+    }
     return _stream.write(data, enc)
   }
 
