@@ -1,7 +1,8 @@
-var Stream = require('stream')
-var path   = require('path')
-var fs     = require('fs')
-var mkdirp = require('mkdirp')
+var Stream  = require('stream')
+var path    = require('path')
+var fs      = require('fs')
+var mkdirp  = require('mkdirp')
+var isodate = require('regexp-isodate')
 //create a directory, and then start writing files into it.
 //write each file upto max size,
 //then create a new current file
@@ -37,7 +38,7 @@ module.exports = function (dir, maxsize) {
   }
 
   function rotate (cb) {
-    if(!_stream) {
+d    if(!_stream) {
       create()
       if(cb) cb()
       return
@@ -51,7 +52,7 @@ module.exports = function (dir, maxsize) {
     moving = true
     fs.rename(
       headfile,
-      path.join(datedir(start), start.toISOString()),
+      path.join(datedir(start), start.toISOString() + '.log'),
       function (err) {
         moving = false
         //I don't know how to handle the error here.
@@ -76,12 +77,10 @@ module.exports = function (dir, maxsize) {
     else
       check()
 
-    var rx = /^head(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z)\.log/
-
     function check () {
       fs.readdir(dir, function (err, ls) {
         var files = ls.filter(function (filename) {
-          return rx.test(filename)
+          return isodate.test(filename)
         }).sort()
         var name = files.pop()
         if(!name) fresh()
@@ -97,7 +96,7 @@ module.exports = function (dir, maxsize) {
             else if(stat.size < maxsize) {
               var stream =
                 fs.createWriteStream(headfile = filename, {flags: 'a'})
-                start = stream.start = new Date(rx.exec(name)[1])
+                start = stream.start = new Date(isodate.exec(name)[1])
               next(stream)
             }
             else fresh()
