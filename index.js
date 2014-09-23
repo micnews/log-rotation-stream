@@ -38,7 +38,7 @@ module.exports = function (dir, maxsize) {
   }
 
   function rotate (cb) {
-d    if(!_stream) {
+    if(!_stream) {
       create()
       if(cb) cb()
       return
@@ -91,9 +91,10 @@ d    if(!_stream) {
               // if the file did not exist at this point,
               // it must have been deleted between when we got it from readdir
               // and now, so just ignore this and continue like it wasn't there.
-              fresh()
+              return fresh()
             }
             else if(stat.size < maxsize) {
+              written = stat.size
               var stream =
                 fs.createWriteStream(headfile = filename, {flags: 'a'})
                 start = stream.start = new Date(isodate.exec(name)[1])
@@ -122,9 +123,11 @@ d    if(!_stream) {
         _stream = stream
         creating = false
 
-        while(s.buffer.length)
-          _stream.write(s.buffer.shift())
-
+        while(s.buffer.length) {
+          var data = s.buffer.shift()
+          _stream.write(data)
+          if((written += data.length) > maxsize) return rotate()
+        }
         _stream.start = start
 
         _stream.on('drain', function () {
@@ -144,13 +147,12 @@ d    if(!_stream) {
   s.writable = true
 
   s.write = function (data, enc) {
-    if((written += data.length) > maxsize) rotate()
-
     //while _stream does not exist, buffer and return paused.
     if(!_stream) {
       s.buffer.push(data)
       return false
     }
+    if((written += data.length) > maxsize) rotate()
     return _stream.write(data, enc)
   }
 
