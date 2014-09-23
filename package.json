@@ -1,7 +1,7 @@
 {
   "name": "log-rotation-stream",
   "description": "a writable stream rotates out dated stream behind the scenes",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "homepage": "https://github.com/micnews/log-rotation-stream",
   "repository": {
     "type": "git",
