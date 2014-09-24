@@ -3,6 +3,7 @@ var path    = require('path')
 var fs      = require('fs')
 var mkdirp  = require('mkdirp')
 var isodate = require('regexp-isodate')
+var assert  = require('assert')
 //create a directory, and then start writing files into it.
 //write each file upto max size,
 //then create a new current file
@@ -15,10 +16,11 @@ function pad (s) {
 }
 
 module.exports = function (dir, maxsize) {
+  var debug = !!process.env.DEBUG
   maxsize = maxsize || 1024*1024*1024
   var s = new Stream()
   s.buffer = []
-  var _stream, start, moving, creating = false
+  var _stream, start, moving, creating = false, ts
 
   var n = 0
 
@@ -61,8 +63,8 @@ module.exports = function (dir, maxsize) {
         if(err) return s.emit('error', err)
         create()
         if(cb) cb()
-      })
-
+      }
+    )
   }
 
   function create () {
@@ -97,7 +99,7 @@ module.exports = function (dir, maxsize) {
               written = stat.size
               var stream =
                 fs.createWriteStream(headfile = filename, {flags: 'a'})
-                start = stream.start = new Date(isodate.exec(name)[1])
+                start = stream.start = new Date(isodate.exec(name)[0])
               next(stream)
             }
             else fresh()
@@ -122,6 +124,19 @@ module.exports = function (dir, maxsize) {
 
         _stream = stream
         creating = false
+
+        if(debug && s.buffer.length) {
+          var chunkStart = new Date(+/\d+/.exec(s.buffer[0])[0])
+          if(ts)
+            assert.ok(
+              ts <= stream.start,
+              'last timestamp from previous logfile *must* be earlier than next stream'
+            )
+          assert.ok(
+            stream.start <= chunkStart,
+            'first timestamp in logfile must be greater or equal to timestamp in filename'
+          )
+        }
 
         while(s.buffer.length) {
           var data = s.buffer.shift()
@@ -148,11 +163,18 @@ module.exports = function (dir, maxsize) {
 
   s.write = function (data, enc) {
     //while _stream does not exist, buffer and return paused.
+
+    //track the latest timestamp in the file, so we can test
+    //that the last record in the previous file is < timestamp in next file.
     if(!_stream) {
       s.buffer.push(data)
       return false
     }
     if((written += data.length) > maxsize) rotate()
+    if(debug) {
+      var lastLine = data.substring(data.lastIndexOf('\n', data.length - 2))
+      ts = new Date(+/\d+/.exec(lastLine)[0])
+    }
     return _stream.write(data, enc)
   }
 
